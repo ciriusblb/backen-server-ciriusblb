@@ -1,95 +1,89 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const mdAutenticacion = require('../middlewares/autenticacion'); 
 const app = express();
 
-const Usuario = require('../models/usuario');
-
+const Medico = require('../models/medico');
 
 app.get('/', (req, res) => {
     var desde = req.query.desde || 0;
-    desde = Number(desde); 
-    Usuario.find({}, 'nombre email img role')
-    .skip(desde)
-    .limit(5)
-    .exec(
-        (err, row) => {
-            if(err){
-                return res.status(500).json({
-                    ok: false,
-                    mensaje:'Error cargando usuarios',
-                    errors: err
-                });
-            }
-            Usuario.count({}, (err,conteo)=>{
-                res.status(200).json({
-                    ok: true,
-                    usuarios: row,
-                    total:conteo
-                });
+    desde = Number(desde);
+    Medico.find({},(err,row)=>{
+        if(err){
+            return res.status(500).json({
+                ok: false,
+                mensaje:'Error cargando medicos',
+                errors: err
+            });
+        }
+        Medico.count({},(err,conteo)=>{
+            res.status(200).json({
+                ok: true,
+                medicos: row,
+                total:conteo
             })
-    })
+        })
 
+    }).populate('usuario', 'nombre email')
+        .populate('hospital')
+        .skip(desde)
+        .limit(5);
 });
 app.post('/', mdAutenticacion.verificaToken, (req, res)=>{
     var body = req.body;
-    console.log('body ',body);
-    var usuario = new Usuario({
+    var medico = new Medico({
         nombre: body.nombre,
-        email: body.email,
-        password: bcrypt.hashSync(body.password,10),
         img: body.img,
-        role: body.role
+        usuario:req.usuario._id,
+        hospital:body.hospital
     });
     
-    usuario.save( (err, row) => {
+    medico.save( (err, row) => {
         if (err) {
             return res.status(400).json({
                 ok: false,
-                mensaje:'Error al crear usuarios',
+                mensaje:'Error al crear medicos',
                 errors: err
             });
         }
         res.status(201).json({
             ok: true,
-            usuario: row,
-            usuarioToken: req.usuario
+            medico: row
         });
     })
 })
 app.put('/:id', mdAutenticacion.verificaToken, (req, res)=>{
     var id = req.params.id;
     var body = req.body;
-    Usuario.findById(id, (err,row)=>{
+    Medico.findById(id, (err,row)=>{
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje:'Error al buscar usuario',
+                mensaje:'Error al buscar medicos',
                 errors: err
             });
         }
         if(!row){
             return res.status(400).json({
                 ok: false,
-                mensaje:'el usuaio no existe',
+                mensaje:'el medico no existe',
                 errors: err
             });
         }
         row.nombre= body.nombre;
-        row.email= body.email;
-        row.role= body.role;
+        row.usuario= req.usuario._id;
+        row.hospital= body.hospital;
+
         row.save( (err, row) => {
             if (err) {
                 return res.status(400).json({
                     ok: false,
-                    mensaje:'Error al actualizar usuario',
+                    mensaje:'Error al actualizar medico',
                     errors: err
                 });
             }
-            row.password=':)';
             res.status(200).json({
                 ok: true,
-                usuario: row
+                medico: row
             });
         })
     })
@@ -97,17 +91,17 @@ app.put('/:id', mdAutenticacion.verificaToken, (req, res)=>{
 })
 app.delete('/:id', mdAutenticacion.verificaToken, (req, res)=>{
     var id = req.params.id;
-    Usuario.findByIdAndRemove(id, (err,row)=>{
+    Medico.findByIdAndRemove(id, (err,row)=>{
         if (err) {
             return res.status(500).json({
                 ok: false,
-                mensaje:'Error al buscar usuario',
+                mensaje:'Error al buscar medico',
                 errors: err
             });
         }
         res.status(200).json({
             ok:true,
-            usuario:row
+            medico:row
         })
     })
 })
